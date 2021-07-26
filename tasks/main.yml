@@ -1,2 +1,60 @@
 ---
 # tasks file for bitwarden
+- name: Get currently-installed version
+  become: no
+  check_mode: no
+  block:
+    - name: Look up current version of Bitwarden
+      command: dpkg-query -W -f ${Version} bitwarden
+      register: dpkg_query_out
+      changed_when: no
+    - name: Extract current version number
+      set_fact:
+        bw_current_version: "{{ dpkg_query_out.stdout }}"
+      when: dpkg_query_out is success
+
+- name: Get latest version
+  become: no
+  check_mode: no
+  block:
+    - name: Look up latest release information
+      uri:
+        url: https://api.github.com/repos/bitwarden/desktop/releases/latest
+        body_format: json
+      register: bw_release
+      changed_when: no
+    - name: Extract latest version number
+      set_fact:
+        bw_latest_version: "{{ bw_release.json.tag_name }}"
+
+- name: Check whether Bitwarden needs to be updated
+  # XXX - If 'dpkg_query_out' failed, need to install Bitwarden.
+  # XXX - If 'bw_release' failed, can't install.
+  become: no
+  check_mode: no
+  vars:
+    # old_version: "1.26.5"
+    old_version: "1.28.5"
+    new_version: "v1.27.1"
+  block:
+    - name: Nothing to upgrade
+      meta: end_play
+      when: new_version is version("v{{ old_version }}", "le")
+    - name: Compare version numbers
+      debug:
+        msg: "Need to update"
+      # XXX - 'version' used to be 'version_compare' until v2.5. Make a
+      # note of this in the Meta.
+      # when: bw_latest_version is version(bw_current_version, 'gt')
+      when: new_version is version("v{{ old_version }}", "gt")
+    - name: Complement Compare version numbers
+      debug:
+        msg: "Don't Need to update"
+      # when: bw_latest_version is version(bw_current_version, 'gt')
+      when: new_version is version("v{{ old_version }}", "le")
+
+- name: Upgrade Bitwarden
+  become: no
+  check_mode: no
+  debug:
+    msg: "If we get this far, need to upgrade."
