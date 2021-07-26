@@ -1,7 +1,7 @@
-Role Name
+Bitwarden
 =========
 
-A brief description of the role goes here.
+Install and update the Bitwarden desktop client.
 
 Requirements
 ------------
@@ -26,6 +26,10 @@ Including an example of how to use your role (for instance, with variables passe
     - hosts: servers
       roles:
          - { role: username.rolename, x: 42 }
+
+    - hosts: desktop-hosts
+      roles:
+	  - bitwarden
 
 License
 -------
