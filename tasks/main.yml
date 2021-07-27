@@ -29,8 +29,6 @@
         bw_latest_version: "{{ bw_release.json.tag_name }}"
 
 - name: Check whether Bitwarden needs to be updated
-  # XXX - If 'dpkg_query_out' failed, need to install Bitwarden.
-  # XXX - If 'bw_release' failed, can't install.
   become: no
   check_mode: no
   block:
