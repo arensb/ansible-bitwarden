@@ -33,26 +33,18 @@
   # XXX - If 'bw_release' failed, can't install.
   become: no
   check_mode: no
-  vars:
-    # old_version: "1.26.5"
-    old_version: "1.28.5"
-    new_version: "v1.27.1"
   block:
     - name: Nothing to upgrade
       meta: end_play
-      when: new_version is version("v{{ old_version }}", "le")
+      when: bw_latest_version is version("v"+bw_current_version, "le")
     - name: Compare version numbers
       debug:
         msg: "Need to update"
-      # XXX - 'version' used to be 'version_compare' until v2.5. Make a
-      # note of this in the Meta.
-      # when: bw_latest_version is version(bw_current_version, 'gt')
-      when: new_version is version("v{{ old_version }}", "gt")
+      when: bw_latest_version is version("v"+bw_current_version, "gt")
     - name: Complement Compare version numbers
       debug:
         msg: "Don't Need to update"
-      # when: bw_latest_version is version(bw_current_version, 'gt')
-      when: new_version is version("v{{ old_version }}", "le")
+      when: bw_latest_version is version("v"+bw_current_version, "le")
 
 - name: Upgrade Bitwarden
   become: no
