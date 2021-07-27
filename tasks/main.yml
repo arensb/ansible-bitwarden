@@ -46,8 +46,30 @@
         msg: "Don't Need to update"
       when: bw_latest_version is version("v"+bw_current_version, "le")
 
-- name: Upgrade Bitwarden
-  become: no
-  check_mode: no
-  debug:
-    msg: "If we get this far, need to upgrade."
+- name: Install new version
+  become: yes
+  vars:
+    # Let's build up the expression bit by bit. It'd be nice to do
+    # this all in one go, but json_query doesn't allow us grep for the
+    # asset whose name matches /.*\.deb$/.
+
+    # There are a bunch of install packages. The one we want has a
+    # name of the form "Bitwarden-<version>-<arch>.deb"
+    # Where <version> doesn't have "v" in front, and
+    # <arch> is "amd64"
+    deb_rel_name: "Bitwarden-{{ bw_latest_version | replace('v', '', 1) }}-{{ bw_arch }}.deb"
+
+    # Now build the query that'll extract that asset from the JSON
+    # file.
+    query: "assets[?name==`{{ deb_rel_name }}`]"
+
+    # Extract the asset. This includes a bunch of information,
+    # including the name (which we're keying off of), the size, the
+    # download URL, and more.
+    asset: "{{ bw_release.json | json_query(query) }}"
+
+    # And now extract the URL
+    download_url: "{{ asset[0]['browser_download_url'] }}"
+  apt:
+    state: present
+    deb: "{{ download_url }}"
