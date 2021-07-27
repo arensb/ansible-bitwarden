@@ -8,6 +8,7 @@
       command: dpkg-query -W -f ${Version} bitwarden
       register: dpkg_query_out
       changed_when: no
+      failed_when: no
     - name: Extract current version number
       set_fact:
         bw_current_version: "{{ dpkg_query_out.stdout }}"
