@@ -1,2 +1,8 @@
 ---
 # defaults file for bitwarden
+
+# Install files are often of the form
+#	Bitwarden-<version>-<arch>.<ext>
+# For <ext> == "deb", currently the only <arch> is "amd64". But if
+# this ever changes, here is the variable you'll want to override.
+bw_arch: amd64
