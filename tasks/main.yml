@@ -1,36 +1,36 @@
 ---
 # tasks file for bitwarden
 - name: Get currently-installed version
-  become: no
-  check_mode: no
+  become: false
+  check_mode: false
   block:
     - name: Look up current version of Bitwarden
       command: dpkg-query -W -f ${Version} bitwarden
       register: dpkg_query_out
-      changed_when: no
-      failed_when: no
+      changed_when: false
+      failed_when: false
     - name: Extract current version number
       set_fact:
         bw_current_version: "{{ dpkg_query_out.stdout }}"
       when: dpkg_query_out is success
 
 - name: Get latest version
-  become: no
-  check_mode: no
+  become: false
+  check_mode: false
   block:
     - name: Look up latest release information
       uri:
         url: https://api.github.com/repos/bitwarden/desktop/releases/latest
         body_format: json
       register: bw_release
-      changed_when: no
+      changed_when: false
     - name: Extract latest version number
       set_fact:
         bw_latest_version: "{{ bw_release.json.tag_name }}"
 
 - name: Check whether Bitwarden needs to be updated
-  become: no
-  check_mode: no
+  become: false
+  check_mode: false
   block:
     - name: Nothing to upgrade
       meta: end_play
@@ -45,7 +45,7 @@
       when: bw_latest_version is version("v"+bw_current_version, "le")
 
 - name: Install new version
-  become: yes
+  become: true
   vars:
     # Let's build up the expression bit by bit. It'd be nice to do
     # this all in one go, but json_query doesn't allow us grep for the
