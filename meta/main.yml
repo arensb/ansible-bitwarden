@@ -1,4 +1,5 @@
 galaxy_info:
+  role_name: bitwarden
   author: Andrew Arensburger
   description: Install and update Bitwarden desktop application.
   company: Ooblick.com
