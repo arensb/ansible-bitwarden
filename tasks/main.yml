@@ -11,7 +11,7 @@
       failed_when: false
     - name: Extract current version number
       set_fact:
-        bw_current_version: "{{ dpkg_query_out.stdout }}"
+        bw_current_version: "{{ dpkg_query_out.stdout |default('0') }}"
       when: dpkg_query_out is success
 
 - name: Get latest version
