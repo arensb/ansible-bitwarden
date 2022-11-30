@@ -9,6 +9,10 @@
       register: dpkg_query_out
       changed_when: false
       failed_when: false
+    - debug:
+        msg: "Currently-installed version: {{ dpkg_query_out.stdout | default('0') }}"
+      when:
+        - ansible_verbosity > 0
     - name: Extract current version number
       set_fact:
         bw_current_version: "{{ dpkg_query_out.stdout |default('0') }}"
@@ -24,11 +28,17 @@
         body_format: json
       register: bw_release
       changed_when: false
+    - debug:
+        msg: "Latest release: {{ bw_release.json.tag_name }}"
+      when:
+        - ansible_verbosity > 0
     - name: Extract latest version number
       set_fact:
         bw_latest_version: "{{ bw_release.json.tag_name }}"
 
 - name: Check whether Bitwarden needs to be updated
+  # The version string fetched from github has a "v" at the beginning,
+  # e.g., "v2022.5.1". The one returned by dpkg-query doesn't.
   become: false
   check_mode: false
   block:
