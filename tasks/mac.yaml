@@ -1,0 +1,244 @@
+# XXX - This isn't used anywhere. This is just carried over from an
+# older, experimental playbook.
+---
+
+# # Install the latest version of Bitwarden desktop app.
+# ---
+# - name: Look up latest version
+#   hosts: localhost
+#   become: no
+#   check_mode: no
+#   tasks:
+#     - name: Fetch information about latest version
+#       uri:
+#         url: https://api.github.com/repos/bitwarden/desktop/releases/latest
+#         return_content: yes
+#       register: bitwarden_latest_version
+#       changed_when: no
+#     - set_fact:
+#         latest_version: "{{ bitwarden_latest_version.json.name }}"
+#     - debug:
+#         msg: "Latest version: {{ bitwarden_latest_version.json.name }}"
+
+# - name: Check installed version (apt)
+#   hosts: desktop
+#   become: no
+#   check_mode: no
+#   tasks:
+#     - name: Get version from dpkg
+#       command:
+#         argv:
+#           - dpkg-query
+#           - -W
+#           - -f
+#           - ${Version}
+#           - bitwarden
+#       register: bitwarden_current_version_apt
+#       changed_when: no
+#       when: ansible_pkg_mgr == "apt"
+
+# # XXX - It looks as though, even though this check doesn't run on
+# # non-Macs, it _always_ sets the register. On non-Macs, the register
+# # says that the task was skipped.
+# #
+# # So I guess we need multiple version registers: one for MacOS, one
+# # for apt machines, and so on (other cases as needed). Then, when
+# # we're done collecting the relevant information, have one
+# # bitwarden_current_version register that we'll set to the appropriate
+# # system-specific one.
+# - name: Check installed version (MacOS)
+#   hosts: desktop
+#   become: no
+#   check_mode: no
+#   tasks:
+#     - name: Get version from defaults (MacOS)
+#       command:
+#         argv:
+#           - defaults
+#           - read
+#           - /Applications/Bitwarden.app/Contents/Info.plist
+#           # - /Applications/iTunes.app/Contents/Info.plist
+#           - CFBundleShortVersionString
+#       register: bitwarden_current_version_macos
+#       changed_when: no
+#       # Typically, this will fail because the file doesn't exist,
+#       # i.e., Bitwarden isn't installed.
+#       failed_when: no
+#       when: ansible_distribution == "MacOSX"
+
+# - name: Currently installed version (common)
+#   hosts: desktop
+#   become: no
+#   check_mode: no
+#   tasks:
+#     - set_fact:
+#         bitwarden_current_version: >-
+#           {{
+#           bitwarden_current_version_apt if
+#           (bitwarden_current_version_apt is defined and
+#            bitwarden_current_version_apt is not skipped)
+#           else
+#           bitwarden_current_version_macos if
+#           (bitwarden_current_version_macos is defined and
+#            bitwarden_current_version_macos is not skipped)
+#           }}
+#     - debug:
+#         var: bitwarden_current_version
+
+# - name: Debug outside of plays
+#   hosts: desktop
+#   become: no
+#   check_mode: no
+#   gather_facts: no
+#   tasks:
+#     - debug:
+#         msg: "Installed version: {{ bitwarden_current_version }}"
+
+# - name: Download latest version (apt)
+#   hosts: desktop
+#   become: no
+#   vars:
+#     latest_version: "{{ hostvars['localhost'].latest_version }}"
+#     url_linux_deb: "https://vault.bitwarden.com/download/?app=desktop&platform=linux&variant=deb"
+#     url_macos: "https://vault.bitwarden.com/download/?app=desktop&platform=macos"
+#   tasks:
+#     - name: "What's the latest version, Kenneth?"
+#       debug:
+#         var: latest_version
+#     - name: Create temporary download directory
+#       tempfile:
+#         state: directory
+#         suffix: bitwarden
+#       register: tempdir
+#       when:
+#         - bitwarden_current_version is failed or
+#           bitwarden_current_version is version(latest_version, '>')
+#     - name: Make up a temporary download directory
+#       set_fact:
+#         tempdir: "/tmp/XXX-bitwarden"
+#       when: ansible_check_mode
+#     - name: Download package (apt)
+#       # uri:
+#       #   url: "{{ url_linux_deb }}"
+#       #   dest: "{{ tempdir }}/"
+#       #   creates: "Bitwarden-{{ latest_version }}-amd64.deb"
+#       #   follow_redirects: yes
+#       #   mode: '0444'
+#       # meta: noop
+#       command: /bin/true
+#       notify: download bitwarden deb
+#       when:
+#         - ansible_pkg_mgr == "apt"
+#         - bitwarden_current_version is failed or
+#           bitwarden_current_version is version(latest_version, '>')
+#     - name: Download package (Mac)
+#       # uri:
+#       #   url: "{{ url_macos }}"
+#       #   dest: "{{ tempdir }}/"
+#       #   creates: "Bitwarden-{{ latest_version }}.dmg"
+#       #   follow_redirects: yes
+#       #   mode: '0444'
+#       # meta: noop
+#       command: /usr/bin/true
+#       notify: download bitwarden deb
+#       when:
+#         - ansible_distribution == "MacOSX"
+#         - bitwarden_current_version is failed or
+#           bitwarden_current_version is version(latest_version, '>')
+#     - name: Flush handlers
+#       meta: flush_handlers
+#     - name: Copy the distribution
+#       copy:
+#         src: "Bitwarden-{{ latest_version }}-amd64.deb"
+#         dest: "/tmp"
+#         mode: preserve
+#   handlers:
+#     - name: Download package file (handler)
+#       listen: download bitwarden deb
+#       delegate_to: localhost
+#       uri:
+#         url: "{{ url_linux_deb }}"
+#         dest: "/tmp/"
+#         creates: "Bitwarden-{{ latest_version }}-amd64.deb"
+#         follow_redirects: yes
+#         mode: '0444'
+
+# # XXX - At this point, maybe have a handler that runs on localhost,
+# # and downloads the .deb or .dmg file, and copies it over to the
+# # client. That way, if there are ten Linux boxes that need the same
+# # file installed, we don't download it ten times. Plus, the clients
+# # might not have access to the Internet.
+# #
+# # Need to trigger a "download-dmg" or "download-deb" handler on the
+# # clients; have those handlers be delegated to localhost (or whichever
+# # host handles downloads). Then flush handlers, to make it run now.
+# #
+# # Next, on each affected client, use 'copy' to copy the distribution
+# # file to the client.
+
+# - name: Update (apt)
+#   hosts: desktop
+#   become: yes
+#   vars:
+#     latest_version: "{{ hostvars['localhost'].latest_version }}"
+#   tasks:
+#     - block:
+#       - debug:
+#           msg: "Need to upgrade"
+#       - command:
+#           argv:
+#             - dpkg
+#             - --dry-run
+#             - -iEG
+#             - "{{ tempdir }}/Bitwarden-{{ latest_version }}-amd64.deb"
+#       when:
+#         - ansible_pkg_mgr == "apt"
+#         - bitwarden_current_version is failed or
+#           bitwarden_current_version is version(latest_version, '>')
+
+# - name: Update (Mac)
+#   hosts: desktop
+#   become: yes
+#   vars:
+#     latest_version: "{{ hostvars['localhost'].latest_version }}"
+#   tasks:
+#     - block:
+#       - debug:
+#           msg: "Need to upgrade"
+#       - name: Mount the disk image
+#         command:
+#           argv:
+#             - hdiutil
+#             - attach
+#             - "{{ tempdir }}/Bitwarden-{{ latest_version }}.dmg"
+#             - -mountpoint
+#             - "/Volumes/Bitwarden"
+#       - name: Copy the application
+#         copy:
+#           src: "/Volumes/Bitwarden/Bitwarden.app"
+#           remote_src: yes
+#           dest: "/tmp/Bitwarden"
+#           mode: preserve
+#       - name: Unmount volume
+#         command:
+#           argv:
+#             - hdiutil
+#             - eject
+#             - "/Volumes/Bitwarden"
+#         when:
+#           - ansible_distribution == "MacOSX"
+#         # We just assume that this will never seriously fail.
+#         failed_when: no
+#       when:
+#         - ansible_distribution == "MacOSX"
+#         - bitwarden_current_version is failed or
+#           bitwarden_current_version is version(latest_version, '>')
+
+# - name: Clean up
+#   hosts: desktop
+#   become: no
+#   tasks:
+#     - name: Clean up temporary download directory
+#       file:
+#         path: "{{ tempdir }}"
+#         state: absent
